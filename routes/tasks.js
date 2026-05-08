@@ -72,7 +72,7 @@ router.post('/generate-roadmap', auth, async (req, res) => {
           content: `Тема: ${topic}`
         }
       ],
-      model: "llama3-8b-8192", // Супер швидка і безкоштовна модель
+      model: "llama-3.1-8b-instant", // Супер швидка і безкоштовна модель
       temperature: 0.7,
     });
 
