@@ -13,6 +13,8 @@ app.use('/tasks', require('./routes/tasks'));
 app.use('/tests', require('./routes/tests'));
 app.use('/profile', require('./routes/profile'));
 
+app.get('/ping', (req, res) => res.status(200).json({ message: 'I am awake! 👀' }));
+
 const db = require('./db');
 
 // Перевірочний запит до БД при старті сервера
