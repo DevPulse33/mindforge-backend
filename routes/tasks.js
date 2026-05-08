@@ -51,6 +51,55 @@ router.put('/:id/undo', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
 
+const Groq = require('groq-sdk');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// [НОВЕ] Згенерувати завдання через ШІ
+router.post('/generate-roadmap', auth, async (req, res) => {
+  const { topic } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // 1. Просимо ШІ згенерувати 3 завдання
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "Ти експерт з навчання. Користувач дає тобі тему. Твоя мета: написати 3 дуже короткі, конкретні практичні завдання (не більше 10-15 слів кожне), які користувач має виконати для вивчення цієї теми. Відповідай ТІЛЬКИ у форматі JSON-масиву рядків. Наприклад: [\"Прочитати статтю про X\", \"Створити таблицю Y\", \"Написати 100 слів про Z\"]. Нічого крім масиву не пиши."
+        },
+        {
+          role: "user",
+          content: `Тема: ${topic}`
+        }
+      ],
+      model: "llama3-8b-8192", // Супер швидка і безкоштовна модель
+      temperature: 0.7,
+    });
+
+    const aiResponse = completion.choices[0].message.content;
+    let newTasks = [];
+    
+    try {
+      newTasks = JSON.parse(aiResponse); // Намагаємось розпарсити відповідь як масив
+    } catch (e) {
+      return res.status(500).json({ error: 'AI повернув неправильний формат' });
+    }
+
+    // 2. Зберігаємо всі 3 завдання в базу даних
+    for (let taskDesc of newTasks) {
+      await db.query(
+        'INSERT INTO tasks (user_id, description, status) VALUES ($1, $2, $3)', 
+        [userId, taskDesc, 'pending']
+      );
+    }
+
+    res.json({ message: 'Roadmap згенереновано успішно!', generatedCount: newTasks.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Помилка при роботі з AI' });
+  }
+});
+
 // ==========================================
 // МАРШРУТИ ДЛЯ АДМІНІСТРАТОРА
 // ==========================================
